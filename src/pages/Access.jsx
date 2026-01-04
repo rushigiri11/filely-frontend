@@ -6,8 +6,24 @@ export default function Access() {
   const [code, setCode] = useState("");
   const navigate = useNavigate();
 
+  const [popup, setPopup] = useState({
+    open: false,
+    title: "",
+    message: ""
+  });
+
+  const showPopup = (title, message) => {
+    setPopup({ open: true, title, message });
+  };
+
   const handleDownload = () => {
-    if (!code.trim()) return alert("Please enter access code");
+    if (!code.trim()) {
+      return showPopup(
+        "Missing code",
+        "Please enter the 6-digit access code to continue."
+      );
+    }
+
     navigate(`/download/${code}`);
   };
 
@@ -19,10 +35,13 @@ export default function Access() {
 
         <input
           className="input"
-          placeholder="Enter file code"
+          placeholder="Enter 6-digit code"
           value={code}
-          maxLength={10}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          maxLength={6}
+          inputMode="numeric"
+          onChange={(e) =>
+            setCode(e.target.value.replace(/\D/g, ""))
+          }
         />
 
         <button className="primary-btn" onClick={handleDownload}>
@@ -38,6 +57,23 @@ export default function Access() {
           ⬅ Back to Upload
         </button>
       </div>
+
+      {/* 🔔 Popup */}
+      {popup.open && (
+        <div className="popup-overlay">
+          <div className="popup-card">
+            <h3>{popup.title}</h3>
+            <p>{popup.message}</p>
+
+            <button
+              className="primary-btn"
+              onClick={() => setPopup({ ...popup, open: false })}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

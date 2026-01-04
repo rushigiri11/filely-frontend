@@ -8,10 +8,22 @@ export default function Upload() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+    const [popup, setPopup] = useState({
+    open: false,
+    title: "",
+    message: ""
+    });
+    const showPopup = (title, message) => {
+    setPopup({ open: true, title, message });
+    };
 
   const handleUpload = async () => {
-    if (!file) return alert("Please select a file");
-
+    if (!file) {
+    return showPopup(
+        "No file selected",
+        "Please choose a file before uploading."
+    );
+    }
     try {
       setLoading(true);
 
@@ -22,7 +34,10 @@ export default function Upload() {
       const res = await uploadFile(formData);
       setCode(res.data.code);
     } catch {
-      alert("Upload failed");
+        showPopup(
+        "Upload failed",
+        "Something went wrong. Please try again."
+        );    
     } finally {
       setLoading(false);
     }
@@ -100,6 +115,21 @@ export default function Upload() {
           🔑 Access a File
         </button>
       </div>
+
+      {popup.open && (
+  <div className="popup-overlay">
+    <div className="popup-card">
+      <h3>{popup.title}</h3>
+      <p>{popup.message}</p>
+      <button
+        className="primary-btn"
+        onClick={() => setPopup({ ...popup, open: false })}
+      >
+        OK
+      </button>
+    </div>
+  </div>
+)}
     </div>
   );
 }
