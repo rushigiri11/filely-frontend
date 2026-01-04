@@ -1,0 +1,198 @@
+/* Page background */
+.page {
+  min-height: 100vh;
+  background: #121212;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+/* Card */
+.card {
+  background: #1c1c1c;
+  width: 100%;
+  max-width: 420px;
+  padding: 28px;
+  border-radius: 14px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Logo */
+.logo {
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  color: #aaa;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+/* File input */
+.file-box {
+  display: block;
+  padding: 14px;
+  border: 2px dashed #444;
+  border-radius: 10px;
+  color: #ccc;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.file-box:hover {
+  border-color: #4f9cff;
+  color: #fff;
+}
+
+/* Buttons */
+.primary-btn {
+  width: 100%;
+  padding: 12px;
+  background: #4f9cff;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondary-btn {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  color: #4f9cff;
+  border: 1px solid #4f9cff;
+  border-radius: 10px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+/* Code box */
+.code-box {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px dashed #555;
+  border-radius: 10px;
+  color: #fff;
+}
+
+.code-box h2 {
+  margin: 6px 0;
+  letter-spacing: 2px;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: #333;
+  margin: 22px 0;
+}
+
+/* Tablet */
+@media (min-width: 600px) {
+  .card {
+    padding: 32px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 900px) {
+  .card {
+    max-width: 460px;
+  }
+}
+/* RESET (important) */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Page background */
+.page {
+  width: 100vw;
+  min-height: 100vh;
+  background: #121212;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;   /* ✅ THIS WAS MISSING */
+
+  padding: 16px;
+}
+
+/* Card */
+.card {
+  background: #1c1c1c;
+  width: 100%;
+  max-width: 420px;
+  padding: 28px;
+  border-radius: 14px;
+  text-align: center;
+
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+/* Dropdown */
+.select {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  border: 1px solid #444;
+  background: #121212;
+  color: #fff;
+  font-size: 14px;
+}
+
+/* Code UI */
+.code-label {
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 6px;
+}
+
+.code-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.code-row h2 {
+  margin: 0;
+  letter-spacing: 4px;
+  font-size: 26px;
+}
+
+.copy-btn {
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #2a2a2a;
+  color: #fff;
+}
+
+.copy-btn:hover {
+  background: #3a3a3a;
+}
+
+.code-hint {
+  font-size: 12px;
+  color: #888;
+  margin-top: 6px;
+}
