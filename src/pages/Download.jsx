@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { downloadByCode } from "../api";
+import "./Download.css";
 
 export default function Download() {
   const { code } = useParams();
@@ -10,27 +11,49 @@ export default function Download() {
   useEffect(() => {
     downloadByCode(code)
       .then((res) => setData(res.data))
-      .catch(() => setError("Invalid or expired code"));
+      .catch(() => setError("Invalid or expired link"));
   }, [code]);
 
-  if (error) return <h2 style={{ textAlign: "center" }}>{error}</h2>;
-  if (!data) return <h2 style={{ textAlign: "center" }}>Loading...</h2>;
+  if (error) {
+    return (
+      <div className="download-page">
+        <div className="download-card">
+          <h2>❌ {error}</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="download-page">
+        <div className="download-card">
+          <h2>⏳ Preparing your file…</h2>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={styles.container}>
-      <h1>📥 Download</h1>
-      <p>{data.fileName}</p>
-      <a href={data.downloadUrl}>
-        <button>Download File</button>
-      </a>
+    <div className="download-page">
+      <div className="download-card">
+        <h1>📥 Download</h1>
+
+        <p className="file-name">{data.fileName}</p>
+
+        <a
+          href={data.downloadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="download-btn"
+        >
+          Download File
+        </a>
+
+        <p className="hint">
+          Link valid until expiry
+        </p>
+      </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    maxWidth: 400,
-    margin: "100px auto",
-    textAlign: "center"
-  }
-};

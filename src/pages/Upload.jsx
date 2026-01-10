@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { uploadFile } from "../api";
 import "./Upload.css";
 
@@ -7,23 +7,43 @@ export default function Upload() {
   const [expiry, setExpiry] = useState(10);
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-    const [popup, setPopup] = useState({
+
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const [totalUploads, setTotalUploads] = useState(0);
+
+  const [popup, setPopup] = useState({
     open: false,
     title: "",
     message: ""
-    });
-    const showPopup = (title, message) => {
+  });
+
+  const showPopup = (title, message) => {
     setPopup({ open: true, title, message });
-    };
+  };
+
+  // 🔹 Fetch total uploaded files count
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_BASE}/api/upload/stats`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.success) {
+          setTotalUploads(data.totalUploads);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
 
   const handleUpload = async () => {
     if (!file) {
-    return showPopup(
+      return showPopup(
         "No file selected",
         "Please choose a file before uploading."
-    );
+      );
     }
+
     try {
       setLoading(true);
 
@@ -33,11 +53,14 @@ export default function Upload() {
 
       const res = await uploadFile(formData);
       setCode(res.data.code);
+
+      // optimistic UI update
+      setTotalUploads(prev => prev + 1);
     } catch {
-        showPopup(
+      showPopup(
         "Upload failed",
         "Something went wrong. Please try again."
-        );    
+      );
     } finally {
       setLoading(false);
     }
@@ -45,14 +68,19 @@ export default function Upload() {
 
   const copyCode = () => {
     navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 1500);
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(directLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 1500);
   };
 
   const directLink = code
-  ? `${window.location.origin}/d/${code}`
-  : "";
-
+    ? `${window.location.origin}/d/${code}`
+    : "";
 
   return (
     <div className="page">
@@ -100,7 +128,7 @@ export default function Upload() {
             <div className="code-row">
               <h2>{code}</h2>
               <button className="copy-btn" onClick={copyCode}>
-                {copied ? "✔ Copied" : "📋 Copy"}
+                {copiedCode ? "✔ Copied" : "📋 Copy"}
               </button>
             </div>
 
@@ -108,8 +136,8 @@ export default function Upload() {
               Share this code to download the file
             </p>
 
-            {/* 🔗 Direct link */}
-            <div style={{ marginTop: 15 }}>
+            {/* Direct link */}
+            <div style={{ marginTop: 16 }}>
               <p className="code-label">Direct link</p>
 
               <div className="code-row">
@@ -117,22 +145,20 @@ export default function Upload() {
                   {directLink}
                 </small>
 
-                <button
-                  className="copy-btn"
-                  onClick={() => {
-                    navigator.clipboard.writeText(directLink);
-                    showPopup("Copied", "Direct link copied to clipboard");
-                  }}
-                >
-                  🔗 Copy link
+                <button className="copy-btn" onClick={copyLink}>
+                  {copiedLink ? "✔ Copied" : "🔗 Copy link"}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-
         <div className="divider" />
+
+        {/* Platform stats */}
+        <p className="platform-stats">
+          🚀 <strong>{totalUploads.toLocaleString()}</strong> files securely shared on Filely
+        </p>
 
         {/* Navigate to access */}
         <button
@@ -143,20 +169,21 @@ export default function Upload() {
         </button>
       </div>
 
+      {/* Popup (ONLY for errors) */}
       {popup.open && (
-  <div className="popup-overlay">
-    <div className="popup-card">
-      <h3>{popup.title}</h3>
-      <p>{popup.message}</p>
-      <button
-        className="primary-btn"
-        onClick={() => setPopup({ ...popup, open: false })}
-      >
-        OK
-      </button>
-    </div>
-  </div>
-)}
+        <div className="popup-overlay">
+          <div className="popup-card">
+            <h3>{popup.title}</h3>
+            <p>{popup.message}</p>
+            <button
+              className="primary-btn"
+              onClick={() => setPopup({ ...popup, open: false })}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
