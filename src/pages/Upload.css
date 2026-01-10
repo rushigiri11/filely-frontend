@@ -226,3 +226,128 @@ html, body {
   font-size: 14px;
   margin-bottom: 18px;
 }
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: radial-gradient(circle at top, #0f2027, #000);
+  color: white;
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(10px);
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  text-align: center;
+  opacity: 0.7;
+  margin-bottom: 20px;
+}
+
+.file-box {
+  width: 100%;
+  padding: 14px;
+  border: 1px dashed #555;
+  border-radius: 10px;
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.select,
+.input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  margin-bottom: 16px;
+}
+
+.primary-btn,
+.secondary-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.primary-btn {
+  background: #00e5ff;
+  color: #000;
+  font-weight: bold;
+}
+
+.secondary-btn {
+  background: transparent;
+  border: 1px solid #00e5ff;
+  color: #00e5ff;
+}
+
+.code-box {
+  margin-top: 20px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.code-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.copy-btn {
+  background: none;
+  border: 1px solid #00e5ff;
+  color: #00e5ff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 20px 0;
+}
+
+/* 🔥 MOBILE OPTIMIZATION */
+@media (max-width: 480px) {
+  .card {
+    padding: 18px;
+  }
+
+  .code-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .copy-btn {
+    width: 100%;
+  }
+}

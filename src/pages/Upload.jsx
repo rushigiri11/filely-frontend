@@ -49,6 +49,11 @@ export default function Upload() {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const directLink = code
+  ? `${window.location.origin}/d/${code}`
+  : "";
+
+
   return (
     <div className="page">
       <div className="card">
@@ -90,7 +95,7 @@ export default function Upload() {
         {/* Code box */}
         {code && (
           <div className="code-box">
-            <p className="code-label">Your 6-digit access code</p>
+            <p className="code-label">Your access code</p>
 
             <div className="code-row">
               <h2>{code}</h2>
@@ -102,8 +107,30 @@ export default function Upload() {
             <p className="code-hint">
               Share this code to download the file
             </p>
+
+            {/* 🔗 Direct link */}
+            <div style={{ marginTop: 15 }}>
+              <p className="code-label">Direct link</p>
+
+              <div className="code-row">
+                <small style={{ wordBreak: "break-all" }}>
+                  {directLink}
+                </small>
+
+                <button
+                  className="copy-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(directLink);
+                    showPopup("Copied", "Direct link copied to clipboard");
+                  }}
+                >
+                  🔗 Copy link
+                </button>
+              </div>
+            </div>
           </div>
         )}
+
 
         <div className="divider" />
 
