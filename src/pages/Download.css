@@ -1,16 +1,19 @@
 /* Full-page center */
+/* Full viewport lock (absolute centering) */
 .download-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed;
+  inset: 0; /* top:0 right:0 bottom:0 left:0 */
+  display: grid;
+  place-items: center;
   background: radial-gradient(
     circle at top,
     #0f2027,
     #000
   );
   padding: 20px;
+  z-index: 1;
 }
+
 
 /* Card */
 .download-card {
