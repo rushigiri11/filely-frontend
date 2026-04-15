@@ -24,16 +24,18 @@ export default function Upload() {
   };
 
   // 🔹 Fetch total uploaded files count
-  useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_BASE}/api/upload/stats`)
-      .then(res => res.json())
-      .then(data => {
-        if (data?.success) {
-          setTotalUploads(data.totalUploads);
-        }
-      })
-      .catch(() => {});
-  }, []);
+useEffect(() => {
+  fetch("https://filely-backend.onrender.com/api/upload/stats")
+    .then(res => res.json())
+    .then(data => {
+      console.log("FINAL DATA:", data); // debug
+
+      if (data.success) {
+        setTotalUploads(data.totalUploads);
+      }
+    })
+    .catch(err => console.log("Stats error:", err));
+}, []);
 
 
   const handleUpload = async () => {
