@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import "./glass.css";
 import "./Access.css";
 
 export default function Access() {
   const [code, setCode] = useState("");
   const navigate = useNavigate();
-
   const [popup, setPopup] = useState({
     open: false,
     title: "",
@@ -28,46 +28,64 @@ export default function Access() {
   };
 
   return (
-    <div className="page">
-      <div className="card">
-        <h1 className="logo">🔑 Filely</h1>
-        <p className="subtitle">Enter access code to download file</p>
+    <div className="app-shell">
+      <div className="ambient ambient-one" />
+      <div className="ambient ambient-two" />
 
-        <input
-          className="input"
-          placeholder="Enter 6-digit code"
-          value={code}
-          maxLength={6}
-          inputMode="numeric"
-          onChange={(e) =>
-            setCode(e.target.value.replace(/\D/g, ""))
-          }
-        />
+      <main className="glass-page access-page">
+        <section className="hero-card access-hero">
+          <div className="brand-lockup access-brand">
+            <h1>Filely</h1>
+            <p>Privacy-first file sharing platform.</p>
+          </div>
+        </section>
 
-        <button className="primary-btn" onClick={handleDownload}>
-          Download File
-        </button>
+        <section className="glass-card access-card">
+          <div className="section-head">
+            <div>
+              <span className="section-kicker">Access code</span>
+              <h2>Open your shared file set</h2>
+            </div>
+          </div>
 
-        <div className="divider" />
+          <input
+            className="glass-input access-input"
+            placeholder="Enter 6-digit code"
+            value={code}
+            maxLength={6}
+            inputMode="numeric"
+            onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+          />
 
-        <button
-          className="secondary-btn"
-          onClick={() => navigate("/")}
-        >
-          ⬅ Back to Upload
-        </button>
-      </div>
+          <div className="access-actions">
+            <button className="primary-action" onClick={handleDownload}>
+              Open files
+            </button>
+            <button className="ghost-action access-back" onClick={() => navigate("/")}>
+              Back to upload
+            </button>
+          </div>
 
-      {/* 🔔 Popup */}
+          <div className="access-help">
+            <div className="help-card">
+              <strong>Private by design</strong>
+              <span>
+                No phone number is revealed, no account is required, and shared
+                files can expire automatically.
+              </span>
+            </div>
+          </div>
+        </section>
+      </main>
+
       {popup.open && (
-        <div className="popup-overlay">
-          <div className="popup-card">
+        <div className="overlay">
+          <div className="modal-card">
             <h3>{popup.title}</h3>
             <p>{popup.message}</p>
-
             <button
-              className="primary-btn"
-              onClick={() => setPopup({ ...popup, open: false })}
+              className="primary-action"
+              onClick={() => setPopup((current) => ({ ...current, open: false }))}
             >
               OK
             </button>
