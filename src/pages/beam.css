@@ -1,0 +1,360 @@
+/* ============================================================
+   Filely — "Beam" design system
+   Deep-purple, mobile-first, purple→mint accent.
+   ============================================================ */
+
+:root {
+  --bg: #150c33;
+  --panel: #1b1140;
+  --text: #f2eeff;
+  --muted: #a79fc8;
+  --dim: #6d639a;
+  --purple: #7c5cff;
+  --purple-2: #a78bff;
+  --mint: #34e5c4;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --surface-3: rgba(255, 255, 255, 0.09);
+  --hair: rgba(255, 255, 255, 0.1);
+  --grad: linear-gradient(120deg, #7c5cff, #a78bff);
+  --grad-brand: linear-gradient(140deg, #7c5cff, #34e5c4);
+  --shadow-purple: 0 14px 30px -10px rgba(124, 92, 255, 0.8);
+}
+
+/* ---- shell + ambient ---- */
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.beam-blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.beam-blob-top {
+  top: -180px;
+  left: 50%;
+  margin-left: -280px;
+  width: 560px;
+  height: 560px;
+  background: rgba(124, 92, 255, 0.28);
+  filter: blur(90px);
+}
+
+.beam-blob-bottom {
+  bottom: -220px;
+  right: -140px;
+  width: 480px;
+  height: 480px;
+  background: rgba(52, 229, 196, 0.14);
+  filter: blur(100px);
+}
+
+/* ---- centered phone-style column ---- */
+.beam-frame {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 24px clamp(16px, 5vw, 28px) 48px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.beam-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.beam-rise {
+  animation: beam-rise 0.28s ease;
+}
+
+@keyframes beam-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes beam-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---- header + brand ---- */
+.beam-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: none;
+  padding: 0;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--grad-brand);
+  display: block;
+  flex: none;
+}
+
+.brand-word {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.pill-ghost {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--hair);
+  padding: 10px 16px;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: background 0.18s ease;
+}
+
+.pill-ghost:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ---- headings ---- */
+.beam-h1 {
+  margin: 0;
+  font-size: clamp(30px, 8.5vw, 38px);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.beam-sub {
+  margin: 10px 0 0;
+  font-size: clamp(15px, 4vw, 16px);
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.beam-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mint);
+}
+
+.beam-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mint);
+}
+
+/* ---- buttons ---- */
+.btn-primary {
+  width: 100%;
+  height: 60px;
+  border-radius: 999px;
+  background: var(--grad);
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 800;
+  box-shadow: var(--shadow-purple);
+  transition: filter 0.18s ease, opacity 0.18s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.btn-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-soft {
+  height: 52px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--hair);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  transition: background 0.18s ease, opacity 0.18s ease;
+}
+
+.btn-soft:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.btn-soft:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-text {
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+  transition: color 0.18s ease;
+}
+
+.btn-text:hover {
+  color: var(--text);
+}
+
+/* ---- generic panel ---- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--surface-3);
+  border-radius: 22px;
+}
+
+/* ---- file type chip ---- */
+.type-chip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+/* ---- circular icon button ---- */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex: none;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+/* ---- toast ---- */
+.beam-toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 28px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 13px 22px;
+  border-radius: 999px;
+  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.6);
+  animation: beam-rise 0.2s ease;
+  z-index: 40;
+}
+
+/* ---- overlay + modal (QR / errors) ---- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(10, 6, 26, 0.68);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: beam-rise 0.18s ease;
+}
+
+.modal-card {
+  width: min(420px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--hair);
+  border-radius: 28px;
+  padding: 24px;
+  color: var(--text);
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.8);
+}
+
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.modal-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.modal-card p {
+  margin: 0 0 18px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.qr-modal {
+  text-align: center;
+}
+
+.qr-image {
+  width: min(260px, 100%);
+  margin: 20px auto 16px;
+  padding: 14px;
+  border-radius: 24px;
+  background: #ffffff;
+  display: block;
+}
+
+.icon-close {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.icon-close:hover {
+  background: rgba(255, 120, 140, 0.2);
+  color: #ff9aa5;
+}

@@ -1,30 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import QRCode from "qrcode";
 import {
   downloadAllFiles,
   downloadSingleFile,
   fetchDownloadBundle
 } from "../api";
-import "./glass.css";
+import { chipColors, extLabel, formatClock, formatFileSize } from "../fileTypes";
+import "./beam.css";
 import "./Download.css";
-
-function formatFileSize(bytes) {
-  if (!bytes) {
-    return "0 B";
-  }
-
-  const units = ["B", "KB", "MB", "GB"];
-  let size = bytes;
-  let unitIndex = 0;
-
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-}
 
 function triggerBrowserDownload(url, fileName) {
   const anchor = document.createElement("a");
@@ -37,33 +21,42 @@ function triggerBrowserDownload(url, fileName) {
 
 async function downloadFileFromSignedUrl(url, fileName) {
   const response = await fetch(url);
-
   if (!response.ok) {
     throw new Error(`Failed to download ${fileName}`);
   }
-
   const blob = await response.blob();
   const objectUrl = window.URL.createObjectURL(blob);
-
   try {
     triggerBrowserDownload(objectUrl, fileName);
   } finally {
-    window.setTimeout(() => {
-      window.URL.revokeObjectURL(objectUrl);
-    }, 1000);
+    window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
   }
 }
 
 export default function Download() {
   const { code } = useParams();
+  const navigate = useNavigate();
+
   const [bundle, setBundle] = useState(null);
   const [loadError, setLoadError] = useState("");
-  const [actionError, setActionError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [activeFileId, setActiveFileId] = useState("");
+  const [status, setStatus] = useState({}); // id -> "busy" | "done"
   const [downloadingAll, setDownloadingAll] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isQrOpen, setIsQrOpen] = useState(false);
+
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef(null);
+
+  const say = useCallback((message) => {
+    setToast(message);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(""), 2200);
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const directLink = useMemo(
     () => `${window.location.origin}/d/${code}`,
@@ -74,26 +67,27 @@ export default function Download() {
     QRCode.toDataURL(directLink, {
       margin: 1,
       width: 320,
-      color: {
-        dark: "#0f172a",
-        light: "#f8fafc"
-      }
+      color: { dark: "#150c33", light: "#ffffff" }
     })
-      .then((dataUrl) => setQrCodeUrl(dataUrl))
-      .catch((err) => console.log("QR error:", err));
+      .then(setQrCodeUrl)
+      .catch(() => setQrCodeUrl(""));
   }, [directLink]);
 
   useEffect(() => {
     let cancelled = false;
-
     setLoading(true);
     setLoadError("");
-    setActionError("");
+    setStatus({});
 
     fetchDownloadBundle(code)
       .then((res) => {
-        if (!cancelled) {
-          setBundle(res.data);
+        if (cancelled) {
+          return;
+        }
+        setBundle(res.data);
+        if (res.data.expiresAt) {
+          const remaining = Math.round((new Date(res.data.expiresAt).getTime() - Date.now()) / 1000);
+          setSecondsLeft(Math.max(0, remaining));
         }
       })
       .catch((err) => {
@@ -112,222 +106,203 @@ export default function Download() {
     };
   }, [code]);
 
+  // Live "deletes in" countdown.
+  useEffect(() => {
+    if (!bundle) {
+      return undefined;
+    }
+    const tick = window.setInterval(() => {
+      setSecondsLeft((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(tick);
+  }, [bundle]);
+
+  const setFileStatus = (id, value) =>
+    setStatus((current) => ({ ...current, [id]: value }));
+
   const handleSingleDownload = async (fileId) => {
+    if (status[fileId] === "busy") {
+      return;
+    }
     try {
-      setActionError("");
-      setActiveFileId(fileId);
+      setFileStatus(fileId, "busy");
       const res = await downloadSingleFile(code, fileId);
-      await downloadFileFromSignedUrl(
-        res.data.downloadUrl,
-        res.data.fileName
-      );
+      await downloadFileFromSignedUrl(res.data.downloadUrl, res.data.fileName);
+      setFileStatus(fileId, "done");
     } catch (err) {
-      setActionError(err?.response?.data?.error || "Unable to download file");
-    } finally {
-      setActiveFileId("");
+      setFileStatus(fileId, undefined);
+      say(err?.response?.data?.error || "Unable to download file");
     }
   };
 
   const handleDownloadAll = async () => {
+    if (downloadingAll) {
+      return;
+    }
     try {
-      setActionError("");
       setDownloadingAll(true);
       const res = await downloadAllFiles(code);
-      const failedFiles = [];
-
+      const failed = [];
       for (const file of res.data.files) {
         try {
+          setFileStatus(file.id ?? file.fileName, "busy");
           await downloadFileFromSignedUrl(file.downloadUrl, file.fileName);
+          setFileStatus(file.id ?? file.fileName, "done");
           await new Promise((resolve) => window.setTimeout(resolve, 250));
         } catch {
-          failedFiles.push(file.fileName);
+          failed.push(file.fileName);
         }
       }
-
-      if (failedFiles.length) {
-        setActionError(
-          `Some files could not be downloaded: ${failedFiles.join(", ")}`
-        );
+      if (failed.length) {
+        say(`Some files could not be downloaded: ${failed.join(", ")}`);
       }
     } catch (err) {
-      setActionError(err?.response?.data?.error || "Unable to download files");
+      say(err?.response?.data?.error || "Unable to download files");
     } finally {
       setDownloadingAll(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="app-shell">
-        <div className="ambient ambient-one" />
-        <div className="ambient ambient-two" />
-        <main className="glass-page download-page">
-          <section className="hero-card download-topbar">
-            <div className="brand-lockup download-brand">
-              <h1>Filely</h1>
-              <p>Privacy-first file sharing platform.</p>
-            </div>
-          </section>
+  const shell = (children) => (
+    <div className="app-shell">
+      <div className="beam-blob beam-blob-top" />
+      <div className="beam-blob beam-blob-bottom" />
+      <main className="beam-frame">
+        <header className="beam-header">
+          <button className="brand" onClick={() => navigate("/")} aria-label="Filely home">
+            <span className="brand-mark" />
+            <span className="brand-word">Filely</span>
+          </button>
+          <button className="pill-ghost" onClick={() => navigate("/")}>
+            Send files
+          </button>
+        </header>
+        {children}
+      </main>
+      {toast && <div className="beam-toast">{toast}</div>}
+    </div>
+  );
 
-          <section className="glass-card download-main">
-            <span className="section-kicker">Preparing files</span>
-            <h2>Loading your shared files</h2>
-          </section>
-        </main>
-      </div>
+  if (loading) {
+    return shell(
+      <section className="beam-view beam-rise dl-status">
+        <div className="dl-spinner" />
+        <h1 className="beam-h1 dl-status-title">Opening your files…</h1>
+        <p className="beam-sub">Checking the code and lining up your downloads.</p>
+      </section>
     );
   }
 
   if (loadError) {
-    return (
-      <div className="app-shell">
-        <div className="ambient ambient-one" />
-        <div className="ambient ambient-two" />
-        <main className="glass-page download-page">
-          <section className="glass-card download-main">
-            <span className="section-kicker">Download unavailable</span>
-            <h1 className="error-title">{loadError}</h1>
-            <p className="error-copy">
-              This code may be wrong or the shared files may have expired.
-            </p>
-            <Link className="ghost-link" to="/access">
-              Try another code
-            </Link>
-          </section>
-        </main>
-      </div>
+    return shell(
+      <section className="beam-view beam-rise dl-status">
+        <span className="dl-error-mark">!</span>
+        <h1 className="beam-h1 dl-status-title">{loadError}</h1>
+        <p className="beam-sub">
+          This code may be wrong, or the shared files may have already expired.
+        </p>
+        <button className="btn-primary dl-status-btn" onClick={() => navigate("/access")}>
+          Try another code
+        </button>
+      </section>
     );
   }
 
-  return (
-    <div className="app-shell">
-      <div className="ambient ambient-one" />
-      <div className="ambient ambient-two" />
+  const files = bundle.files || [];
+  const totalBytes = files.reduce((sum, f) => sum + (f.fileSize || 0), 0);
 
-      <main className="glass-page download-page">
-        <section className="hero-card download-topbar">
-          <div className="brand-lockup download-brand">
-            <h1>Filely</h1>
-            <p>Privacy-first file sharing platform.</p>
-          </div>
-          <Link className="ghost-link download-top-action" to="/access">
-            Use another code
-          </Link>
-        </section>
+  return shell(
+    <section className="beam-view beam-rise">
+      <div className="dl-top">
+        <span className="code-chip">{bundle.code}</span>
+        <button className="btn-text" onClick={() => navigate("/access")}>
+          Another code
+        </button>
+      </div>
 
-        <div className="download-grid">
-          <section className="glass-card download-main">
-            <div className="section-head">
-              <div>
-                <span className="section-kicker">Files</span>
-                <h2>Pick one file or download them all</h2>
+      <h1 className="beam-h1 dl-title">
+        {bundle.fileCount ?? files.length} {(bundle.fileCount ?? files.length) === 1 ? "file" : "files"} for you
+      </h1>
+
+      <div className="deletes-pill">
+        <span className="beam-dot" />
+        <span>Deletes in {formatClock(secondsLeft)}</span>
+      </div>
+
+      <div className="dl-list">
+        {files.map((file) => {
+          const colors = chipColors(file.fileName);
+          const key = file.id ?? file.fileName;
+          const state = status[key];
+          return (
+            <div className="dl-row" key={key}>
+              <span
+                className="type-chip dl-chip"
+                style={{ background: colors.bg, color: colors.fg }}
+              >
+                {extLabel(file.fileName)}
+              </span>
+              <div className="dl-meta">
+                <span className="dl-name">{file.fileName}</span>
+                {state === "busy" ? (
+                  <span className="progress">
+                    <span className="progress-fill progress-indeterminate" />
+                  </span>
+                ) : state === "done" ? (
+                  <span className="dl-saved">Saved · {formatFileSize(file.fileSize)}</span>
+                ) : (
+                  <span className="dl-size">{formatFileSize(file.fileSize)}</span>
+                )}
               </div>
-
               <button
-                className="primary-action download-all"
-                onClick={handleDownloadAll}
-                disabled={downloadingAll}
+                className="icon-btn dl-get"
+                aria-label={`Download ${file.fileName}`}
+                onClick={() => handleSingleDownload(file.id)}
+                disabled={state === "busy" || downloadingAll}
               >
-                {downloadingAll ? "Downloading..." : "Download all files"}
+                {state === "done" ? "✓" : "↓"}
               </button>
             </div>
+          );
+        })}
+      </div>
 
-            {actionError && (
-              <div className="download-alert">{actionError}</div>
-            )}
-
-            <div className="download-list">
-              {bundle.files.map((file) => (
-                <article className="download-file" key={file.id}>
-                  <div>
-                    <strong>{file.fileName}</strong>
-                    <span>{formatFileSize(file.fileSize)}</span>
-                  </div>
-
-                  <button
-                    className="secondary-action"
-                    onClick={() => handleSingleDownload(file.id)}
-                    disabled={activeFileId === file.id || downloadingAll}
-                  >
-                    {activeFileId === file.id ? "Preparing..." : "Download"}
-                  </button>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <aside className="glass-card download-side">
-            <div className="side-card">
-              <span className="muted-label">Access code</span>
-              <strong>{bundle.code}</strong>
-            </div>
-
-            <div className="side-card">
-              <span className="muted-label">Files ready</span>
-              <strong>{bundle.fileCount}</strong>
-            </div>
-
-            <div className="side-card">
-              <span className="muted-label">Expires</span>
-              <strong>{new Date(bundle.expiresAt).toLocaleString()}</strong>
-            </div>
-
-            <div className="side-card">
-              <span className="muted-label">Share this page</span>
-              <small>{directLink}</small>
-            </div>
-
-            <div className="side-actions">
-              <button
-                className="secondary-action secondary-action-wide"
-                onClick={() => setIsQrOpen(true)}
-                disabled={!qrCodeUrl}
-              >
-                Show QR
-              </button>
-            </div>
-
-            <p className="download-note">
-              No login is needed. If your browser asks for permission to
-              download multiple files, allow it once and Filely will continue
-              the rest.
-            </p>
-          </aside>
+      <div className="dl-footer">
+        <p className="dl-note">Files delete themselves when the clock runs out.</p>
+        <div className="dl-footer-actions">
+          <button
+            className="btn-soft dl-qr-btn"
+            onClick={() => setIsQrOpen(true)}
+            disabled={!qrCodeUrl}
+          >
+            Show QR
+          </button>
+          <button className="btn-primary dl-all-btn" onClick={handleDownloadAll} disabled={downloadingAll}>
+            {downloadingAll ? "Downloading…" : `Download all · ${formatFileSize(totalBytes)}`}
+          </button>
         </div>
-      </main>
+      </div>
 
       {isQrOpen && (
-        <div className="overlay">
-          <div className="modal-card qr-modal">
+        <div className="overlay" onClick={() => setIsQrOpen(false)}>
+          <div className="modal-card qr-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <div>
-                <span className="section-kicker">Scan to open</span>
-                <h3>QR for this file page</h3>
+                <span className="beam-eyebrow">Scan to open</span>
+                <h3>QR for this page</h3>
               </div>
-              <button
-                className="icon-close"
-                onClick={() => setIsQrOpen(false)}
-                aria-label="Close QR dialog"
-              >
+              <button className="icon-close" onClick={() => setIsQrOpen(false)} aria-label="Close">
                 ×
               </button>
             </div>
-
-            {qrCodeUrl && (
-              <img className="qr-image" src={qrCodeUrl} alt="QR code for the download page" />
-            )}
-
-            <p className="qr-copy">
-              Scan this code from another phone or laptop to open the same file
-              list instantly.
-            </p>
-
-            <button className="primary-action" onClick={() => setIsQrOpen(false)}>
+            {qrCodeUrl && <img className="qr-image" src={qrCodeUrl} alt="QR code for the download page" />}
+            <p>Scan from another phone or laptop to open the same file list instantly.</p>
+            <button className="btn-primary" onClick={() => setIsQrOpen(false)}>
               Done
             </button>
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

@@ -1,449 +1,383 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
-import { fetchUploadStats, uploadFile } from "../api";
-import "./glass.css";
+import { uploadFile } from "../api";
+import { chipColors, extLabel, formatClock, formatFileSize } from "../fileTypes";
+import "./beam.css";
 import "./Upload.css";
 
 const MAX_FILES = 15;
-const SUCCESS_NOTICE_DURATION = 5;
+const EXPIRY_OPTIONS = [5, 10, 30, 60];
 
-function formatFileSize(bytes) {
-  if (!bytes) {
-    return "0 B";
-  }
-
-  const units = ["B", "KB", "MB", "GB"];
-  let size = bytes;
-  let unitIndex = 0;
-
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-}
+let idSeed = 0;
+const nextId = () => `${Date.now()}-${idSeed++}`;
 
 export default function Upload() {
   const navigate = useNavigate();
-  const stepTwoRef = useRef(null);
-  const [selectedFiles, setSelectedFiles] = useState([]);
+
+  const [items, setItems] = useState([]); // { id, file, name, size }
   const [expiry, setExpiry] = useState(10);
-  const [uploadResult, setUploadResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [totalUploads, setTotalUploads] = useState(0);
+  const [uploadPct, setUploadPct] = useState(0);
+  const [dragging, setDragging] = useState(false);
+
+  const [result, setResult] = useState(null); // { code, fileCount, expiresIn, totalBytes }
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isQrOpen, setIsQrOpen] = useState(false);
-  const [successCountdown, setSuccessCountdown] = useState(0);
-  const [popup, setPopup] = useState({
-    open: false,
-    title: "",
-    message: ""
-  });
 
-  const showPopup = (title, message) => {
-    setPopup({ open: true, title, message });
-  };
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef(null);
 
-  useEffect(() => {
-    fetchUploadStats()
-      .then((res) => res.data)
-      .then((data) => {
-        if (data.success) {
-          setTotalUploads(data.totalUploads);
-        }
-      })
-      .catch((err) => console.log("Stats error:", err));
+  const say = useCallback((message) => {
+    setToast(message);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(""), 1800);
   }, []);
 
-  const directLink = useMemo(
-    () => (uploadResult ? `${window.location.origin}/d/${uploadResult.code}` : ""),
-    [uploadResult]
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+
+  const totalBytes = useMemo(
+    () => items.reduce((sum, it) => sum + it.size, 0),
+    [items]
   );
 
+  const directLink = useMemo(
+    () => (result ? `${window.location.origin}/d/${result.code}` : ""),
+    [result]
+  );
+
+  // Live countdown ring on the "sent" view.
+  useEffect(() => {
+    if (!result) {
+      return undefined;
+    }
+    const tick = window.setInterval(() => {
+      setSecondsLeft((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(tick);
+  }, [result]);
+
+  // QR for the shared link.
   useEffect(() => {
     if (!directLink) {
       setQrCodeUrl("");
       return;
     }
-
     QRCode.toDataURL(directLink, {
       margin: 1,
       width: 320,
-      color: {
-        dark: "#0f172a",
-        light: "#f8fafc"
-      }
+      color: { dark: "#150c33", light: "#ffffff" }
     })
-      .then((dataUrl) => setQrCodeUrl(dataUrl))
-      .catch((err) => console.log("QR error:", err));
+      .then(setQrCodeUrl)
+      .catch(() => setQrCodeUrl(""));
   }, [directLink]);
 
-  useEffect(() => {
-    if (!successCountdown) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setSuccessCountdown((current) => Math.max(current - 1, 0));
-    }, 1000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [successCountdown]);
-
-  useEffect(() => {
-    if (!uploadResult || !window.matchMedia("(max-width: 980px)").matches) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      stepTwoRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
+  const addFiles = useCallback(
+    (fileList) => {
+      if (loading) {
+        return say("Hold on — still sending");
+      }
+      const incoming = Array.from(fileList || []).map((file) => ({
+        id: nextId(),
+        file,
+        name: file.name,
+        size: file.size
+      }));
+      if (!incoming.length) {
+        return;
+      }
+      setItems((current) => {
+        const merged = current.concat(incoming);
+        if (merged.length > MAX_FILES) {
+          say(`Up to ${MAX_FILES} files at once`);
+        }
+        return merged.slice(0, MAX_FILES);
       });
-    }, 180);
+      setResult(null);
+    },
+    [loading, say]
+  );
 
-    return () => window.clearTimeout(timeoutId);
-  }, [uploadResult]);
+  const removeItem = (id) => {
+    setItems((current) => current.filter((it) => it.id !== id));
+  };
 
-  const handleFileChange = (event) => {
-    const nextFiles = Array.from(event.target.files || []);
-
-    if (nextFiles.length > MAX_FILES) {
-      event.target.value = "";
-      return showPopup(
-        "Too many files",
-        `Please select up to ${MAX_FILES} files in one upload.`
-      );
+  const onDragOver = (event) => {
+    event.preventDefault();
+    if (!dragging && !loading) {
+      setDragging(true);
     }
+  };
 
-    setSelectedFiles(nextFiles);
-    setUploadResult(null);
-    setCopiedCode(false);
-    setCopiedLink(false);
-    setSuccessCountdown(0);
+  const onDragLeave = (event) => {
+    event.preventDefault();
+    setDragging(false);
+  };
+
+  const onDrop = (event) => {
+    event.preventDefault();
+    setDragging(false);
+    addFiles(event.dataTransfer?.files);
   };
 
   const handleUpload = async () => {
-    if (!selectedFiles.length) {
-      return showPopup(
-        "No files selected",
-        "Choose at least one file before uploading."
-      );
+    if (loading) {
+      return;
+    }
+    if (!items.length) {
+      return say("Choose a file first");
     }
 
     try {
       setLoading(true);
+      setUploadPct(0);
 
       const formData = new FormData();
-      selectedFiles.forEach((file) => {
-        formData.append("files", file);
-      });
+      items.forEach((it) => formData.append("files", it.file));
       formData.append("expiryMinutes", expiry);
 
-      const res = await uploadFile(formData);
-      const nextTotalUploads =
-        totalUploads + (res.data.fileCount || selectedFiles.length);
-
-      setUploadResult({
-        code: res.data.code,
-        fileCount: res.data.fileCount,
-        expiresIn: res.data.expiresIn
+      const res = await uploadFile(formData, (event) => {
+        if (event.total) {
+          setUploadPct(Math.round((event.loaded / event.total) * 100));
+        }
       });
-      setTotalUploads(nextTotalUploads);
-      setSuccessCountdown(SUCCESS_NOTICE_DURATION);
+
+      setResult({
+        code: res.data.code,
+        fileCount: res.data.fileCount ?? items.length,
+        expiresIn: res.data.expiresIn,
+        totalBytes
+      });
+      setSecondsLeft(expiry * 60);
     } catch (error) {
       const message =
-        error?.response?.data?.error ||
-        "Something went wrong. Please try again.";
-
-      showPopup("Upload failed", message);
+        error?.response?.data?.error || "Something went wrong. Please try again.";
+      say(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const copyCode = async () => {
-    if (!uploadResult?.code) {
-      return;
+  const copy = (text, message) => {
+    if (navigator.clipboard && text) {
+      navigator.clipboard.writeText(text).catch(() => {});
     }
-
-    await navigator.clipboard.writeText(uploadResult.code);
-    setCopiedCode(true);
-    window.setTimeout(() => setCopiedCode(false), 1500);
+    say(message);
   };
 
-  const copyLink = async () => {
-    if (!directLink) {
-      return;
-    }
-
-    await navigator.clipboard.writeText(directLink);
-    setCopiedLink(true);
-    window.setTimeout(() => setCopiedLink(false), 1500);
+  const reset = () => {
+    setResult(null);
+    setItems([]);
+    setSecondsLeft(0);
+    setUploadPct(0);
   };
+
+  const topActionLabel = "Got a code?";
+  const ringDeg = useMemo(() => {
+    const total = Math.max(1, expiry * 60);
+    return `${Math.round((secondsLeft / total) * 360)}deg`;
+  }, [secondsLeft, expiry]);
 
   return (
-    <div className="app-shell">
-      <div className="ambient ambient-one" />
-      <div className="ambient ambient-two" />
+    <div
+      className="app-shell"
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      <div className="beam-blob beam-blob-top" />
+      <div className="beam-blob beam-blob-bottom" />
 
-      <main className="glass-page glass-page-upload">
-        <section className="hero-card upload-topbar">
-          <div className="brand-lockup">
-            <h1>Filely</h1>
-            <p>Privacy-first file sharing platform.</p>
-          </div>
-          <button
-            className="ghost-action topbar-action"
-            onClick={() => navigate("/access")}
-          >
-            Open download page
+      <main className="beam-frame">
+        <header className="beam-header">
+          <button className="brand" onClick={reset} aria-label="Filely home">
+            <span className="brand-mark" />
+            <span className="brand-word">Filely</span>
           </button>
-        </section>
+          <button className="pill-ghost" onClick={() => navigate("/access")}>
+            {topActionLabel}
+          </button>
+        </header>
 
-        <div className="glass-grid">
-          <section className="glass-card">
-            <div className="section-head">
-              <div>
-                <span className="section-kicker">Step 1</span>
-                <h2>Choose your files</h2>
-              </div>
-              <span className="count-chip">
-                {selectedFiles.length}/{MAX_FILES}
-              </span>
-            </div>
+        {!result ? (
+          <section className="beam-view">
+            <h1 className="beam-h1">Drop it in.</h1>
+            <p className="beam-sub">
+              We hand you a 6-digit code. It vanishes when the timer runs out.
+            </p>
 
-            <label className="dropzone">
-              <input
-                type="file"
-                multiple
-                hidden
-                onChange={handleFileChange}
-              />
+            <label className={`dropzone${dragging ? " is-dragging" : ""}`}>
+              <input type="file" multiple hidden onChange={(e) => addFiles(e.target.files)} />
+              <span className="dropzone-plus">+</span>
               <span className="dropzone-title">
-                {selectedFiles.length ? "Change selected files" : "Select files"}
+                {items.length ? "Add more files" : "Choose files"}
               </span>
-              <span className="dropzone-copy">
-                Drag, tap, or click to pick files from any device
+              <span className="dropzone-hint">
+                {items.length
+                  ? `${items.length} selected · ${formatFileSize(totalBytes)}`
+                  : `or drop them anywhere · ${MAX_FILES} max`}
               </span>
+              {dragging && <span className="dropzone-release">Release to add</span>}
             </label>
 
-            {selectedFiles.length > 0 && (
+            {items.length > 0 && (
               <div className="file-list">
-                {selectedFiles.map((file) => (
-                  <article
-                    className="file-row"
-                    key={`${file.name}-${file.lastModified}`}
-                  >
-                    <div>
-                      <strong>{file.name}</strong>
-                      <span>{formatFileSize(file.size)}</span>
+                {items.map((it) => {
+                  const colors = chipColors(it.name);
+                  const done = loading && uploadPct >= 100;
+                  return (
+                    <div className="file-row" key={it.id}>
+                      <span
+                        className="type-chip file-chip"
+                        style={{ background: colors.bg, color: colors.fg }}
+                      >
+                        {extLabel(it.name)}
+                      </span>
+                      <div className="file-meta">
+                        <span className="file-name">{it.name}</span>
+                        <span className="file-sub">
+                          {loading
+                            ? done
+                              ? `${formatFileSize(it.size)} · done`
+                              : `${formatFileSize(it.size)} · ${uploadPct}%`
+                            : formatFileSize(it.size)}
+                        </span>
+                        {loading && !done && (
+                          <span className="progress">
+                            <span className="progress-fill" style={{ width: `${uploadPct}%` }} />
+                          </span>
+                        )}
+                      </div>
+                      {loading && done ? (
+                        <span className="file-check">✓</span>
+                      ) : (
+                        !loading && (
+                          <button
+                            className="file-remove"
+                            aria-label="Remove file"
+                            onClick={() => removeItem(it.id)}
+                          >
+                            ✕
+                          </button>
+                        )
+                      )}
                     </div>
-                  </article>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="send-footer">
+              <div className="expiry-row">
+                <span className="expiry-label">Expires in</span>
+                {EXPIRY_OPTIONS.map((m) => (
+                  <button
+                    key={m}
+                    className={`expiry-chip${expiry === m ? " is-active" : ""}`}
+                    onClick={() => setExpiry(m)}
+                    disabled={loading}
+                  >
+                    {m === 60 ? "1h" : `${m}m`}
+                  </button>
                 ))}
               </div>
-            )}
-
-            <div className="control-stack">
-              <label className="field-group">
-                <span>Link expiry</span>
-                <select
-                  className="glass-input"
-                  value={expiry}
-                  onChange={(e) => setExpiry(Number(e.target.value))}
-                >
-                  <option value={5}>5 minutes</option>
-                  <option value={10}>10 minutes</option>
-                  <option value={20}>20 minutes</option>
-                  <option value={30}>30 minutes</option>
-                  <option value={60}>60 minutes</option>
-                </select>
-              </label>
-
-              <button
-                className="primary-action"
-                onClick={handleUpload}
-                disabled={loading}
-              >
-                {loading ? "Uploading files..." : "Upload files"}
+              <button className="btn-primary" onClick={handleUpload} disabled={loading}>
+                {loading
+                  ? "Sending…"
+                  : items.length
+                    ? `Send ${items.length} ${items.length === 1 ? "file" : "files"}`
+                    : "Send files"}
               </button>
             </div>
-
           </section>
+        ) : (
+          <section className="beam-view beam-rise">
+            <div className="sent-head">
+              <span className="beam-eyebrow">
+                <span className="beam-dot" />
+                {result.fileCount} {result.fileCount === 1 ? "file" : "files"} sent
+              </span>
+              <h1 className="beam-h1 sent-title">Share your code</h1>
+            </div>
 
-          <section className="glass-card" ref={stepTwoRef}>
-            <div className="section-head">
-              <div>
-                <span className="section-kicker">Step 2</span>
-                <h2>Share instantly</h2>
+            <div className="ring-wrap">
+              <div className="ring" style={{ background: `conic-gradient(#34e5c4 ${ringDeg}, rgba(255,255,255,0.1) 0)` }}>
+                <div className="ring-inner">
+                  <span className="ring-kicker">code</span>
+                  <span className="ring-code">{result.code}</span>
+                  <span className="ring-clock">{formatClock(secondsLeft)} left</span>
+                </div>
               </div>
             </div>
 
-            {successCountdown > 0 && uploadResult && (
-              <div className="success-banner">
-                <div>
-                  <strong>Upload complete</strong>
-                  <span>
-                    Ready to share. This notice closes in {successCountdown}s.
-                  </span>
-                </div>
-                <div className="success-meta">
-                  <span>{uploadResult.fileCount} files</span>
-                  <span>{totalUploads.toLocaleString()} shared total</span>
-                </div>
+            <div className="sent-actions">
+              <button className="btn-primary" onClick={() => copy(result.code, "Code copied")}>
+                Copy code
+              </button>
+              <div className="sent-actions-row">
+                <button className="btn-soft" onClick={() => copy(directLink, "Link copied")}>
+                  Copy link
+                </button>
+                <button
+                  className="btn-soft"
+                  onClick={() => setIsQrOpen(true)}
+                  disabled={!qrCodeUrl}
+                >
+                  Show QR
+                </button>
               </div>
-            )}
+            </div>
 
-            {uploadResult ? (
-              <div className="share-stack">
-                <div className="share-card">
-                  <span className="muted-label">Access code</span>
-                  <div className="share-row">
-                    <strong className="share-code">{uploadResult.code}</strong>
-                    <button className="secondary-action" onClick={copyCode}>
-                      {copiedCode ? "Copied" : "Copy code"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="share-card">
-                  <span className="muted-label">Direct link</span>
-                  <div className="share-row share-row-link">
-                    <small>{directLink}</small>
-                    <button className="secondary-action" onClick={copyLink}>
-                      {copiedLink ? "Copied" : "Copy link"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="summary-grid">
-                  <div className="summary-card">
-                    <span>Files in this upload</span>
-                    <strong>{uploadResult.fileCount}</strong>
-                  </div>
-                  <div className="summary-card">
-                    <span>Expires in</span>
-                    <strong>{uploadResult.expiresIn}</strong>
-                  </div>
-                  <div className="summary-card">
-                    <span>Total files shared</span>
-                    <strong>{totalUploads.toLocaleString()}</strong>
-                  </div>
-                </div>
-
-                <div className="action-row">
-                  <button
-                    className="secondary-action secondary-action-wide"
-                    onClick={() => setIsQrOpen(true)}
-                    disabled={!qrCodeUrl}
-                  >
-                    Show QR
-                  </button>
-                  <button
-                    className="ghost-action"
-                    onClick={() => navigate(`/download/${uploadResult.code}`)}
-                  >
-                    Preview download page
-                  </button>
-                </div>
+            <div className="info-list">
+              <div className="info-row">
+                <span className="info-key">Link</span>
+                <span className="info-val info-link">{directLink.replace(/^https?:\/\//, "")}</span>
               </div>
-            ) : (
-              <div className="empty-panel">
-                <h3>Upload details will appear here</h3>
-                <p>
-                  After upload, you will get the code, the direct link, a QR
-                  code button, and a running total of every file shared so far.
-                </p>
+              <div className="info-row">
+                <span className="info-key">Size</span>
+                <span className="info-val">{formatFileSize(result.totalBytes)}</span>
               </div>
-            )}
+            </div>
 
+            <div className="sent-footer">
+              <button
+                className="btn-soft preview-btn"
+                onClick={() => navigate(`/download/${result.code}`)}
+              >
+                Preview download page
+              </button>
+              <button className="btn-text reset-btn" onClick={reset}>
+                Send more files
+              </button>
+            </div>
           </section>
-        </div>
-
-        <section className="glass-card info-card">
-          <div className="section-head info-card-head">
-            <div>
-              <span className="section-kicker">Privacy-first sharing</span>
-              <h2>Why people use Filely</h2>
-            </div>
-          </div>
-
-          <div className="info-card-grid">
-            <div className="info-card-stack">
-              <div className="stat-pill stat-pill-light">
-                <span>Total files shared</span>
-                <strong>{totalUploads.toLocaleString()}</strong>
-              </div>
-              <div className="stat-pill stat-pill-light">
-                <span>Batch limit</span>
-                <strong>{MAX_FILES} files</strong>
-              </div>
-            </div>
-
-            <div className="feature-list-card">
-              <ul className="feature-list">
-                <li>No phone number revealed while sharing files.</li>
-                <li>No login, signup, or account needed.</li>
-                <li>Files auto-expire for more private sharing.</li>
-                <li>More private than WhatsApp, Drive, or email.</li>
-                <li>Share by code, direct link, or QR scan.</li>
-              </ul>
-            </div>
-          </div>
-        </section>
+        )}
       </main>
 
       {isQrOpen && (
-        <div className="overlay">
-          <div className="modal-card qr-modal">
+        <div className="overlay" onClick={() => setIsQrOpen(false)}>
+          <div className="modal-card qr-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <div>
-                <span className="section-kicker">Scan to download</span>
-                <h3>QR for your shared link</h3>
+                <span className="beam-eyebrow">Scan to download</span>
+                <h3>QR for your link</h3>
               </div>
-              <button
-                className="icon-close"
-                onClick={() => setIsQrOpen(false)}
-                aria-label="Close QR dialog"
-              >
+              <button className="icon-close" onClick={() => setIsQrOpen(false)} aria-label="Close">
                 ×
               </button>
             </div>
-
-            {qrCodeUrl && (
-              <img className="qr-image" src={qrCodeUrl} alt="QR code for the shared link" />
-            )}
-
-            <p className="qr-copy">
-              Scan this code from another phone, tablet, or laptop to open the
-              download page instantly.
-            </p>
-
-            <button className="primary-action" onClick={() => setIsQrOpen(false)}>
+            {qrCodeUrl && <img className="qr-image" src={qrCodeUrl} alt="QR code for the shared link" />}
+            <p>Scan from another phone, tablet, or laptop to open the download page instantly.</p>
+            <button className="btn-primary" onClick={() => setIsQrOpen(false)}>
               Done
             </button>
           </div>
         </div>
       )}
 
-      {popup.open && (
-        <div className="overlay">
-          <div className="modal-card">
-            <h3>{popup.title}</h3>
-            <p>{popup.message}</p>
-            <button
-              className="primary-action"
-              onClick={() => setPopup((current) => ({ ...current, open: false }))}
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
+      {toast && <div className="beam-toast">{toast}</div>}
     </div>
   );
 }

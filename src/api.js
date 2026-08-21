@@ -20,14 +20,15 @@ function resolveApiBase() {
 
 export const API_BASE = resolveApiBase();
 
-export const uploadFile = (formData) => {
+export const uploadFile = (formData, onUploadProgress) => {
   return axios.post(
     `${API_BASE}/api/upload`,
     formData,
     {
       headers: {
         "Content-Type": "multipart/form-data"
-      }
+      },
+      onUploadProgress
     }
   );
 };

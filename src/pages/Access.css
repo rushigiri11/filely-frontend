@@ -1,76 +1,103 @@
-.access-page {
-  display: grid;
-  gap: 18px;
-  max-width: 880px;
+/* ---- Receive view ---- */
+.digit-row {
+  display: flex;
+  gap: clamp(6px, 2vw, 9px);
+  margin-top: clamp(24px, 7vw, 34px);
 }
 
-.access-hero,
-.access-card {
-  padding: 26px;
+.digit-cell {
+  flex: 1;
+  aspect-ratio: 1;
+  display: block;
 }
 
-.access-hero {
+.digit-box {
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  font-size: clamp(20px, 6.5vw, 26px);
+  font-weight: 800;
 }
 
-.access-brand h1 {
-  margin: 0;
-  font-size: clamp(2rem, 4vw, 3rem);
-  line-height: 1;
-  letter-spacing: -0.04em;
+.digit-filled {
+  background: var(--surface-2);
+  border: 1px solid var(--hair);
 }
 
-.access-brand p {
-  margin: 8px 0 0;
-  color: rgba(255, 255, 255, 0.74);
+.digit-active {
+  background: rgba(124, 92, 255, 0.2);
+  border: 2px solid var(--purple);
+  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.16);
 }
 
-.access-card {
-  max-width: 620px;
-  margin: 0 auto;
-  width: 100%;
+.digit-empty {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.access-input {
-  margin-bottom: 16px;
-  text-align: center;
-  font-size: clamp(1.2rem, 5vw, 1.5rem);
-  letter-spacing: 0.24em;
+.digit-caret {
+  width: 2px;
+  height: 26px;
+  background: var(--purple);
+  animation: beam-caret 1.1s steps(1) infinite;
 }
 
-.access-actions {
+.open-btn {
+  margin-top: 22px;
+  height: 58px;
+}
+
+.open-btn.is-idle {
+  background: var(--surface-2);
+  color: var(--dim);
+  box-shadow: none;
+}
+
+.open-btn.is-idle:hover {
+  filter: none;
+}
+
+/* ---- keypad ---- */
+.keypad {
+  margin-top: auto;
+  padding-top: 24px;
   display: grid;
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(8px, 2.5vw, 12px);
 }
 
-.access-back {
-  width: 100%;
-}
-
-.access-help {
-  margin-top: 16px;
-}
-
-.help-card {
-  padding: 16px 18px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.help-card strong {
+.keypad-cell {
   display: block;
-  margin-bottom: 6px;
 }
 
-.help-card span {
-  color: rgba(226, 232, 240, 0.8);
+.key {
+  width: 100%;
+  height: clamp(52px, 14vw, 58px);
+  border-radius: 18px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-@media (max-width: 680px) {
-  .access-hero,
-  .access-card {
-    padding: 18px;
-  }
+.key-digit {
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.key-digit:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.key-soft {
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.key-soft:hover {
+  color: var(--text);
 }

@@ -1,9 +1,9 @@
 :root {
-  font-family: "SF Pro Display", "Segoe UI Variable", "Segoe UI", sans-serif;
+  font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #e2e8f0;
-  background: #08111f;
+  color: #f2eeff;
+  background: #150c33;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -27,11 +27,13 @@ body {
 }
 
 body {
-  background: #08111f;
+  background: #150c33;
+  color: #f2eeff;
 }
 
 ::selection {
-  background: rgba(191, 219, 254, 0.32);
+  background: rgba(124, 92, 255, 0.4);
+  color: #ffffff;
 }
 
 button,
@@ -41,6 +43,16 @@ textarea {
   font: inherit;
 }
 
+button {
+  cursor: pointer;
+  border: 0;
+}
+
 a {
-  color: inherit;
+  color: #34e5c4;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #7c5cff;
 }
