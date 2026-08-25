@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
-import { uploadFile } from "../api";
+import { uploadFile, fetchUploadStats } from "../api";
 import { chipColors, extLabel, formatClock, formatFileSize } from "../fileTypes";
 import "./beam.css";
 import "./Upload.css";
@@ -30,6 +30,8 @@ export default function Upload() {
   const [toast, setToast] = useState("");
   const toastTimer = useRef(null);
 
+  const [totalTransferred, setTotalTransferred] = useState(null);
+
   const say = useCallback((message) => {
     setToast(message);
     window.clearTimeout(toastTimer.current);
@@ -37,6 +39,22 @@ export default function Upload() {
   }, []);
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+
+  // Global "files transferred so far" counter.
+  const loadStats = useCallback(async () => {
+    try {
+      const res = await fetchUploadStats();
+      if (res?.data?.success) {
+        setTotalTransferred(res.data.totalUploads ?? 0);
+      }
+    } catch {
+      /* stats are non-critical; keep the app usable if this fails */
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   const totalBytes = useMemo(
     () => items.reduce((sum, it) => sum + it.size, 0),
@@ -151,6 +169,18 @@ export default function Upload() {
         totalBytes
       });
       setSecondsLeft(expiry * 60);
+
+      // Reflect this batch in the running total.
+      if (typeof res.data.totalUploads === "number") {
+        setTotalTransferred(res.data.totalUploads);
+      } else {
+        setTotalTransferred((prev) =>
+          typeof prev === "number"
+            ? prev + (res.data.fileCount ?? items.length)
+            : prev
+        );
+        loadStats();
+      }
     } catch (error) {
       const message =
         error?.response?.data?.error || "Something went wrong. Please try again.";
@@ -290,6 +320,14 @@ export default function Upload() {
                     ? `Send ${items.length} ${items.length === 1 ? "file" : "files"}`
                     : "Send files"}
               </button>
+              {totalTransferred !== null && (
+                <p className="transfer-count">
+                  <span className="transfer-count-num">
+                    {totalTransferred.toLocaleString()}
+                  </span>{" "}
+                  files transferred with Filely so far
+                </p>
+              )}
             </div>
           </section>
         ) : (
@@ -351,6 +389,14 @@ export default function Upload() {
               <button className="btn-text reset-btn" onClick={reset}>
                 Send more files
               </button>
+              {totalTransferred !== null && (
+                <p className="transfer-count">
+                  <span className="transfer-count-num">
+                    {totalTransferred.toLocaleString()}
+                  </span>{" "}
+                  files transferred with Filely so far
+                </p>
+              )}
             </div>
           </section>
         )}
